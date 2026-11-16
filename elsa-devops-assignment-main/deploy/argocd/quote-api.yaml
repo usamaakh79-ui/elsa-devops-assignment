@@ -1,0 +1,33 @@
+# ArgoCD Application: syncs charts/quote-api from this repo's main branch.
+# The image tag lives in charts/quote-api/values.yaml and is bumped by CI, so
+# "deploy" == "merge to main"; nobody runs helm/kubectl against the app.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: quote-api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/rummannaqvi/elsa-devops-assignment.git
+    targetRevision: main
+    path: charts/quote-api
+    helm:
+      releaseName: quote-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: quote-api
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

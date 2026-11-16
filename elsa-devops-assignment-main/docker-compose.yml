@@ -1,0 +1,30 @@
+# One command brings up everything:
+#   docker compose up -d   -> builds the toolbox, which creates a k3d cluster
+#                             (1 server + 4 agents) on the host Docker daemon
+#                             and runs troubleshoot/prepare.sh.
+# Then: ./scripts/run-all.sh
+name: elsa-devops
+
+services:
+  toolbox:
+    build:
+      context: ./toolbox
+    image: elsa-toolbox:local
+    container_name: elsa-toolbox
+    # k3d drives the host Docker daemon through the socket; the cluster nodes
+    # are sibling containers ("agents are just containers").
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/workspace            # scripts/, charts/, troubleshoot/ ... bind-mounted
+    environment:
+      CLUSTER_NAME: elsa
+      AGENTS: "4"
+      K3S_IMAGE: rancher/k3s:v1.31.5-k3s1
+      HOST_HTTP_PORT: "${HOST_HTTP_PORT:-8080}"   # host port -> cluster ingress
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/bootstrap.done"]
+      interval: 10s
+      timeout: 3s
+      retries: 60
+      start_period: 30s

@@ -1,0 +1,49 @@
+image:
+  repository: ghcr.io/rummannaqvi/quote-api
+  # Git SHA of the commit that built the image. Bumped automatically by CI
+  # (.github/workflows/ci.yml) after a successful test + SAST + build + scan + push;
+  # ArgoCD then rolls it out. Never a floating tag.
+  tag: "29f90cad5b83d26ef26a6cea31f794cee6b46ca0"
+  pullPolicy: IfNotPresent
+
+containerPort: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 128Mi
+
+autoscaling:
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  maxUnavailable: 1
+
+# Placement policy (see README "Design decisions"):
+#  - hard: only on the spot/on-demand app pools (never GPU, never control-plane)
+#  - soft: prefer spot (cost)
+#  - spread over capacity types with maxSkew=2 (DoNotSchedule): with 3 replicas
+#    the 3rd pod cannot land on spot (3-0 > 2), so >=1 replica is on on-demand.
+#    Cordoned/drained nodes drop out of the skew math (nodeTaintsPolicy: Honor),
+#    so losing a node never deadlocks rescheduling.
+#  - soft: spread across hostnames
+placement:
+  capacityLabel: acme.io/capacity
+  allowedCapacity: ["spot", "on-demand"]
+  preferredCapacity: spot
+  preferredWeight: 100
+  capacityMaxSkew: 2
+
+ingress:
+  enabled: true
+  className: traefik
+  host: ""          # empty = match any host, so http://localhost:8080 works
+  path: /
+
+terminationGracePeriodSeconds: 30
+preStopSleepSeconds: 5

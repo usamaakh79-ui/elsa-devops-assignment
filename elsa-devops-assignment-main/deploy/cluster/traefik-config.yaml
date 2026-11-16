@@ -1,0 +1,32 @@
+# Tunes the k3s-bundled Traefik (applied by scripts/00-bootstrap.sh).
+# 2 replicas + PDB so the ingress path survives draining one node, and prefer
+# the on-demand node so a spot reclaim rarely touches the ingress at all.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    deployment:
+      replicas: 2
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: traefik
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+                - key: acme.io/capacity
+                  operator: In
+                  values: ["on-demand"]
